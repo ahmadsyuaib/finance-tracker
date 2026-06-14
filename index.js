@@ -36,7 +36,7 @@ app.get("/oauth2callback", async (req, res) => {
 
     const tokens = await handleOAuthCallback(code);
 
-    console.log("OAuth tokens:", tokens);
+    console.log("OAuth completed successfully");
 
     res.send(`
       <h2>Google OAuth successful</h2>
@@ -192,7 +192,13 @@ if (process.env.ENABLE_CRON === "true") {
     console.log("Running scheduled Gmail scan...");
     try {
       const results = await scanGmailAndSave();
-      console.log(results);
+      console.log(
+        results.map((r) => ({
+            gmailMessageId: r.gmailMessageId,
+            status: r.status,
+            reason: r.reason
+        }))
+      );
     } catch (error) {
       console.error("Cron scan failed:", error.message);
     }
