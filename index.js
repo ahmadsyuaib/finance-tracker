@@ -166,6 +166,28 @@ app.get("/transactions/summary", async (req, res) => {
   res.json(Object.values(summary));
 });
 
+app.post("/mobile/refresh", async (req, res) => {
+  try {
+    const results = await scanGmailAndSave();
+
+    const summary = results.map((r) => ({
+      status: r.status,
+      reason: r.reason
+    }));
+
+    res.json({
+      ok: true,
+      message: "Refresh completed",
+      results: summary
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    });
+  }
+});
+
 app.post("/register-push-token", async (req, res) => {
   const { expo_push_token, device_name } = req.body;
 
