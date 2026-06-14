@@ -138,8 +138,6 @@ async function scanGmailAndSave() {
       headers.find((h) => h.name.toLowerCase() === "subject")?.value || "";
 
     const body = extractPlainText(fullMsg.data.payload) || fullMsg.data.snippet || "";
-    console.log("SUBJECT:", subject);
-    console.log("BODY PREVIEW:", body.slice(0, 1000));
 
     const parsed = parseTransactionEmail({
       subject,

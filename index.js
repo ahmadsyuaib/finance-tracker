@@ -49,7 +49,17 @@ app.get("/oauth2callback", async (req, res) => {
   }
 });
 
-app.post("/parse-now", async (req, res) => {
+function requireCronSecret(req, res, next) {
+  const secret = req.headers["x-cron-secret"];
+
+  if (secret !== process.env.CRON_SECRET) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  next();
+}
+
+app.post("/parse-now", requireCronSecret, async (req, res) => {
   try {
     const results = await scanGmailAndSave();
     res.json({ ok: true, results });
@@ -101,6 +111,59 @@ app.patch("/transactions/:id/category", async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
 
   res.json(data);
+});
+
+app.get("/categories", async (req, res) => {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("*")
+    .order("name", { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json(data);
+});
+
+app.get("/transactions/summary", async (req, res) => {
+  const month = req.query.month; // example: 2026-06
+
+  if (!month) {
+    return res.status(400).json({
+      error: "Missing month. Use /transactions/summary?month=2026-06"
+    });
+  }
+
+  const startDate = `${month}-01T00:00:00.000Z`;
+  const endDate = new Date(startDate);
+  endDate.setUTCMonth(endDate.getUTCMonth() + 1);
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("amount, category_id, categories(name, color, icon)")
+    .gte("transaction_datetime", startDate)
+    .lt("transaction_datetime", endDate.toISOString())
+    .eq("direction", "outflow");
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  const summary = {};
+
+  for (const tx of data) {
+    const categoryName = tx.categories?.name || "Unassigned";
+
+    if (!summary[categoryName]) {
+      summary[categoryName] = {
+        category: categoryName,
+        color: tx.categories?.color || "#9CA3AF",
+        icon: tx.categories?.icon || "circle",
+        total: 0
+      };
+    }
+
+    summary[categoryName].total += Number(tx.amount);
+  }
+
+  res.json(Object.values(summary));
 });
 
 app.post("/register-push-token", async (req, res) => {
